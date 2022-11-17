@@ -38,6 +38,7 @@ namespace Firebend.AutoCrud.Web.Abstractions
         [SwaggerOperation("Creates {entityNamePlural}")]
         [SwaggerResponse(201, "A {entityName} was created successfully.")]
         [SwaggerResponse(400, "The request is invalid.", typeof(ValidationProblemDetails))]
+        [SwaggerResponse(403, "Forbidden")]
         [Produces("application/json")]
         public virtual async Task<ActionResult<TReadViewModel>> CreateAsync(
             TCreateViewModel body,
@@ -51,7 +52,8 @@ namespace Firebend.AutoCrud.Web.Abstractions
                 return GetInvalidModelStateResult();
             }
 
-            var entity = await _mapper.FromAsync(body, cancellationToken)
+            var entity = await _mapper
+                .FromAsync(body, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!TryValidateModel(entity))

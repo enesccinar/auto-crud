@@ -17,7 +17,9 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Firebend.AutoCrud.Web.Abstractions
 {
     [ApiController]
-    public abstract class AbstractEntityUpdateController<TKey, TEntity, TUpdateViewModel, TReadViewModel> : AbstractControllerWithKeyParser<TKey, TEntity>
+    public abstract class
+        AbstractEntityUpdateController<TKey, TEntity, TUpdateViewModel, TReadViewModel> :
+            AbstractControllerWithKeyParser<TKey, TEntity>
         where TEntity : class, IEntity<TKey>
         where TKey : struct
         where TReadViewModel : class
@@ -50,8 +52,9 @@ namespace Firebend.AutoCrud.Web.Abstractions
         [HttpPut("{id}")]
         [SwaggerOperation("Updates {entityNamePlural}")]
         [SwaggerResponse(200, "The {entityName} with a given key was updated.")]
-        [SwaggerResponse(404, "The {entityName} with the given key is not found.")]
         [SwaggerResponse(400, "The request is invalid.", typeof(ValidationProblemDetails))]
+        [SwaggerResponse(403, "Forbidden")]
+        [SwaggerResponse(404, "The {entityName} with the given key is not found.")]
         [Produces("application/json")]
         public virtual async Task<ActionResult<TReadViewModel>> UpdatePutAsync(
             [Required][FromRoute] string id,
@@ -68,31 +71,18 @@ namespace Firebend.AutoCrud.Web.Abstractions
                 return GetInvalidModelStateResult();
             }
 
-            if (body == null)
-            {
-                ModelState.AddModelError(nameof(body), "A body is required");
+            var entityUpdate = await this.ValidateModel(body, _updateViewModelMapper, cancellationToken);
 
+            if (!ModelState.IsValid)
+            {
                 return GetInvalidModelStateResult();
-            }
-
-            var entityUpdate = await _updateViewModelMapper
-                .FromAsync(body, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (entityUpdate == null)
-            {
-                throw new Exception("Update view model mapper did not map to entity.");
             }
 
             if (IsCustomFieldsEntity() && HasCustomFieldsPopulated(entityUpdate))
             {
-                ModelState.AddModelError(nameof(body), "Modifying an entity's custom fields is not allowed in this endpoint. Please use the entity's custom fields endpoints.");
+                ModelState.AddModelError(nameof(body),
+                    "Modifying an entity's custom fields is not allowed in this endpoint. Please use the entity's custom fields endpoints.");
 
-                return GetInvalidModelStateResult();
-            }
-
-            if (!ModelState.IsValid || !TryValidateModel(entityUpdate))
-            {
                 return GetInvalidModelStateResult();
             }
 
@@ -149,8 +139,9 @@ namespace Firebend.AutoCrud.Web.Abstractions
         [HttpPatch("{id}")]
         [SwaggerOperation("Updates {entityNamePlural} using a JSON Patch Document")]
         [SwaggerResponse(200, "The {entityName} with the given key was updated.")]
-        [SwaggerResponse(404, "The {entityName} with the given key is not found.")]
         [SwaggerResponse(400, "The request is invalid.", typeof(ValidationProblemDetails))]
+        [SwaggerResponse(403, "Forbidden")]
+        [SwaggerResponse(404, "The {entityName} with the given key is not found.")]
         [Produces("application/json")]
         public virtual async Task<ActionResult<TReadViewModel>> UpdatePatchAsync(
             [Required][FromRoute] string id,
